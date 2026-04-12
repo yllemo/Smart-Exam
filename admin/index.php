@@ -1,14 +1,24 @@
 <?php
 session_start();
 
-define('CONFIG_DIR',   dirname(__DIR__) . '/config');
-define('CONTENT_DIR',  dirname(__DIR__) . '/content');
-define('ADMIN_CONFIG', CONFIG_DIR . '/admin.json');
+define('CONFIG_DIR',           dirname(__DIR__) . '/config');
+define('CONTENT_DIR',          dirname(__DIR__) . '/content');
+define('ADMIN_CONFIG',         CONFIG_DIR . '/admin.json');
+define('ADMIN_CONFIG_EXAMPLE', CONFIG_DIR . '/admin.json_example');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function loadAdminConfig(): array {
-    if (!file_exists(ADMIN_CONFIG)) return [];
+    // If the live config doesn't exist yet, bootstrap it from the example template.
+    // This means a fresh deployment never overwrites an existing password.
+    if (!file_exists(ADMIN_CONFIG)) {
+        if (file_exists(ADMIN_CONFIG_EXAMPLE)) {
+            copy(ADMIN_CONFIG_EXAMPLE, ADMIN_CONFIG);
+        } else {
+            // Fallback: write a blank template so setup can proceed
+            file_put_contents(ADMIN_CONFIG, json_encode(['password_hash' => ''], JSON_PRETTY_PRINT));
+        }
+    }
     return json_decode(file_get_contents(ADMIN_CONFIG), true) ?? [];
 }
 
@@ -183,8 +193,9 @@ if ($needsSetup)          $view = 'setup';
 elseif (!$isAuthenticated) $view = 'login';
 elseif (in_array($action, ['new', 'edit'])) $view = 'editor';
 elseif ($action === 'change_password') $view = 'change_password';
-elseif ($action === 'help') $view = 'help';
-else                       $view = 'list';
+elseif ($action === 'help')   $view = 'help';
+elseif ($action === 'prompt') $view = 'prompt';
+else                          $view = 'list';
 
 // ── Load file for editing ──────────────────────────────────────────────────
 
@@ -492,6 +503,62 @@ $pageTitle = 'Smart Exam Admin';
         .ref-box-text h3 { margin: 0 0 4px; color: #64b5f6; font-size: 0.95em; }
         .ref-box-text p  { margin: 0; font-size: 0.85em; color: #90a0b0; }
         .ref-box a.btn   { white-space: nowrap; }
+
+        /* ── Prompt helper ── */
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 6px;
+        }
+        @media (max-width: 700px) { .prompt-grid { grid-template-columns: 1fr; } }
+        .prompt-grid .full-width { grid-column: 1 / -1; }
+
+        .prompt-output-wrap {
+            margin-top: 24px;
+            display: none;
+        }
+        .prompt-output-wrap.visible { display: block; }
+        .prompt-output-wrap h3 {
+            margin: 0 0 10px;
+            color: #03dac6;
+            font-size: 1em;
+        }
+        .prompt-output-textarea {
+            width: 100%;
+            min-height: 340px;
+            padding: 14px;
+            background: #141414;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #d0d0d0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82em;
+            line-height: 1.6;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .prompt-copy-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .prompt-copied {
+            font-size: 0.85em;
+            color: #4caf50;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .prompt-copied.show { opacity: 1; }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+        }
     </style>
 </head>
 <body>
@@ -561,6 +628,7 @@ $pageTitle = 'Smart Exam Admin';
     <div class="navbar-right">
         <a href="../index.php" class="btn btn-secondary btn-sm">View Site</a>
         <a href="index.php?action=help" class="btn btn-secondary btn-sm">SEF Format</a>
+        <a href="index.php?action=prompt" class="btn btn-secondary btn-sm">Prompt Helper</a>
         <a href="index.php?action=change_password" class="btn btn-secondary btn-sm">Change Password</a>
         <a href="index.php?action=logout" class="btn btn-danger btn-sm">Logout</a>
     </div>
@@ -859,6 +927,104 @@ Rome"></textarea>
 
     </div><!-- /.card -->
 
+<?php elseif ($view === 'prompt'): ?>
+<!-- ── PROMPT HELPER ─────────────────────────────────────── -->
+    <div class="breadcrumb">
+        <a href="index.php">Exam Files</a>
+        <span>›</span> Prompt Helper
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">AI Prompt Helper</h2>
+        <p style="color:#b0b0b0;font-size:.9em;margin-bottom:20px;">
+            Fill in the fields below to generate a ready-to-use prompt for any AI assistant (Claude, ChatGPT, Gemini&hellip;).
+            The prompt embeds the full SEF format rules so the AI outputs a correctly formatted
+            <code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">.sef</code> file you can paste straight into the editor.
+        </p>
+
+        <div class="prompt-grid">
+
+            <div class="form-group">
+                <label>Topic / Subject <span style="color:#e74c3c;">*</span></label>
+                <input class="form-control" type="text" id="ph-topic"
+                       placeholder="e.g. Python list comprehensions, TCP/IP basics, World War II">
+            </div>
+
+            <div class="form-group">
+                <label>Number of Questions</label>
+                <input class="form-control" type="number" id="ph-count"
+                       min="1" max="50" value="10">
+            </div>
+
+            <div class="form-group">
+                <label>Difficulty</label>
+                <select class="form-control" id="ph-difficulty">
+                    <option value="mixed">Mixed (easy to hard)</option>
+                    <option value="beginner">Beginner / Easy</option>
+                    <option value="intermediate">Intermediate / Medium</option>
+                    <option value="advanced">Advanced / Hard</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Answer Type</label>
+                <select class="form-control" id="ph-answertype">
+                    <option value="mixed">Mixed (single and multiple correct)</option>
+                    <option value="single">Single correct answer only</option>
+                    <option value="multiple">Multiple correct answers only</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Language</label>
+                <input class="form-control" type="text" id="ph-language"
+                       placeholder="English" value="English">
+            </div>
+
+            <div class="form-group">
+                <label>Answers per Question</label>
+                <select class="form-control" id="ph-options">
+                    <option value="4">4 answer options</option>
+                    <option value="3">3 answer options</option>
+                    <option value="5">5 answer options</option>
+                </select>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Extra Context <span style="color:#666;font-size:.85em;">(optional)</span></label>
+                <textarea class="form-control" id="ph-context" rows="3"
+                          placeholder="e.g. Focus on practical usage, avoid deprecated syntax. Target audience: junior developers."></textarea>
+            </div>
+
+        </div><!-- /.prompt-grid -->
+
+        <div style="margin-top:20px;">
+            <button class="btn btn-primary" onclick="buildPrompt()">Generate Prompt</button>
+        </div>
+
+        <!-- Output -->
+        <div class="prompt-output-wrap" id="prompt-output-wrap">
+            <h3>Generated Prompt — copy and paste into your AI assistant</h3>
+            <textarea class="prompt-output-textarea" id="prompt-output" readonly spellcheck="false"></textarea>
+            <div class="prompt-copy-row">
+                <button class="btn btn-success" onclick="copyPrompt()">Copy to Clipboard</button>
+                <span class="prompt-copied" id="prompt-copied">Copied!</span>
+            </div>
+        </div>
+
+        <!-- Reference box -->
+        <div class="ref-box" style="margin-top:28px;">
+            <div class="ref-box-text">
+                <h3>SEF Format — Full Specification &amp; AI Integration Guide</h3>
+                <p>Extended format rules, two-state design, and AI workflow examples are documented in the official repository.</p>
+            </div>
+            <a href="https://github.com/yllemo/Smart-Exam-Format" target="_blank" rel="noopener" class="btn btn-primary">
+                View on GitHub &rarr;
+            </a>
+        </div>
+
+    </div><!-- /.card -->
+
 <?php endif; ?>
 
 </div><!-- /.main -->
@@ -919,7 +1085,120 @@ function copyExam() {
         .catch(err => alert('Copy failed: ' + err));
 }
 
-// Auto-sanitize filename input: strip special chars on blur
+// ── Prompt Helper ───────────────────────────────────────────────────────────
+
+const SEF_RULES = `\
+## SMART EXAM FORMAT (SEF) — RULES
+
+SEF is a plain-text format for multiple-choice exam questions.
+
+### Structure
+- One question per block. The FIRST line of a block is the question text.
+- Every answer option line starts with a hyphen prefix:
+    -* answer text   ← CORRECT answer
+    -  answer text   ← WRONG answer (the space after - is optional)
+- Blocks are separated by exactly ONE blank line.
+- No numbering, no bullets, no headers, no markdown in the structure itself.
+
+### Single-correct example (radio buttons in the simulator)
+What is the capital of France?
+-* Paris
+- Berlin
+- Madrid
+- Rome
+
+### Multiple-correct example (checkboxes in the simulator)
+Which of these are primary colors?
+-* Red
+-* Blue
+-* Yellow
+- Green
+- Purple
+
+### Rules summary
+1. First line of a block = question text (never starts with -)
+2. Lines starting with -* = correct answer(s)
+3. Lines starting with - (without *) = wrong answers
+4. One blank line separates questions — no more, no less
+5. Plain UTF-8 text, no special encoding required
+6. Images/links can be embedded as [label](url) inside question or answer text`;
+
+function buildPrompt() {
+    const topic      = document.getElementById('ph-topic').value.trim();
+    const count      = parseInt(document.getElementById('ph-count').value, 10) || 10;
+    const difficulty = document.getElementById('ph-difficulty');
+    const answertype = document.getElementById('ph-answertype');
+    const language   = document.getElementById('ph-language').value.trim() || 'English';
+    const options    = document.getElementById('ph-options').value;
+    const context    = document.getElementById('ph-context').value.trim();
+
+    if (!topic) {
+        document.getElementById('ph-topic').focus();
+        document.getElementById('ph-topic').style.borderColor = '#e74c3c';
+        return;
+    }
+    document.getElementById('ph-topic').style.borderColor = '';
+
+    const diffLabel = difficulty.options[difficulty.selectedIndex].text;
+    const typeLabel = answertype.options[answertype.selectedIndex].text;
+
+    const answerInstruction = {
+        'mixed':    `Use a mix of single-correct and multiple-correct questions. For single-correct: exactly one -* line. For multiple-correct: two or more -* lines.`,
+        'single':   `Every question must have exactly ONE correct answer (one -* line). All other answers use -.`,
+        'multiple': `Every question must have TWO OR MORE correct answers (-* lines). Remaining answers use -.`
+    }[answertype.value];
+
+    let prompt = `You are an expert exam question writer. Generate a multiple-choice exam in Smart Exam Format (SEF).
+
+${SEF_RULES}
+
+## YOUR TASK
+
+Topic:              ${topic}
+Number of questions: ${count}
+Options per question: ${options}
+Difficulty:         ${diffLabel}
+Answer type:        ${typeLabel}
+Language:           ${language}`;
+
+    if (context) {
+        prompt += `\nAdditional instructions: ${context}`;
+    }
+
+    prompt += `
+
+## ANSWER TYPE INSTRUCTION
+
+${answerInstruction}
+
+## OUTPUT RULES (STRICTLY FOLLOW)
+
+- Output ONLY the raw .sef content. Nothing else.
+- Do NOT include any introduction, explanation, or closing remarks.
+- Do NOT wrap output in code fences (\`\`\`) or markdown blocks.
+- Do NOT number the questions.
+- Do NOT add section headers or labels.
+- Start immediately with the first question text.
+- Separate every question block with exactly one blank line.
+- End the file after the last answer line with no trailing blank line.`;
+
+    document.getElementById('prompt-output').value = prompt;
+    const wrap = document.getElementById('prompt-output-wrap');
+    wrap.classList.add('visible');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyPrompt() {
+    const ta = document.getElementById('prompt-output');
+    if (!ta.value.trim()) return;
+    navigator.clipboard.writeText(ta.value).then(() => {
+        const badge = document.getElementById('prompt-copied');
+        badge.classList.add('show');
+        setTimeout(() => badge.classList.remove('show'), 2000);
+    }).catch(err => alert('Copy failed: ' + err));
+}
+
+// ── Auto-sanitize filename input: strip special chars on blur
 const fnInput = document.getElementById('filename-input');
 if (fnInput) {
     fnInput.addEventListener('blur', () => {

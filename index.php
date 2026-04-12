@@ -1,6 +1,6 @@
 <?php
 $config = json_decode(file_get_contents(__DIR__ . '/config/config.json'), true);
-$title      = htmlspecialchars($config['title']       ?? 'Smart Exam Simulator');
+$title      = htmlspecialchars($config['title']       ?? 'Smart Exam');
 $favicon    = htmlspecialchars($config['favicon']     ?? '');
 $stylesheet = htmlspecialchars($config['stylesheet']  ?? 'style.css');
 $description = htmlspecialchars($config['description'] ?? '');
@@ -27,12 +27,19 @@ if (is_dir($contentDir)) {
     <?php endif; ?>
     <title><?= $title ?></title>
     <?php if ($favicon): ?>
-    <link rel="icon" href="<?= $favicon ?>">
+    <link rel="icon" type="image/svg+xml" href="<?= $favicon ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="<?= $stylesheet ?>">
 </head>
 <body>
-    <div id="progress-info" class="progress-info"></div>
+    <div id="progress-info" class="progress-info">
+        <span id="progress-text"></span>
+        <div class="zoom-controls">
+            <button id="zoom-out" onclick="zoomOut()" title="Zoom out">−</button>
+            <span id="zoom-label">100%</span>
+            <button id="zoom-in" onclick="zoomIn()" title="Zoom in">+</button>
+        </div>
+    </div>
     <div class="container-wrapper">
         <div class="container">
 
@@ -71,7 +78,10 @@ if (is_dir($contentDir)) {
     <div class="button-container">
         <div class="checkbox-container">
             <input type="checkbox" id="showCorrectAnswers">
-            <label for="showCorrectAnswers">Show Answer</label>
+            <label for="showCorrectAnswers">
+                <span class="label-full">Show Answer</span>
+                <span class="label-short">Show</span>
+            </label>
         </div>
         <button id="prev-button" disabled>Previous</button>
         <button id="next-button">Next</button>

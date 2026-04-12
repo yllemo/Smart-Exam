@@ -35,18 +35,72 @@ body {
     color: #b0b0b0;
     font-size: 0.9em;
     z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Zoom controls */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+.zoom-controls button {
+    background: transparent;
+    border: 1px solid #3a3a3a;
+    color: #666;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    font-size: 13px;
+    line-height: 1;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.zoom-controls button:hover {
+    border-color: #666;
+    color: #c0c0c0;
+    background: transparent;
+}
+.zoom-controls button:disabled {
+    background: transparent;
+    color: #3a3a3a;
+    border-color: #2a2a2a;
+    cursor: not-allowed;
+}
+#zoom-label {
+    font-size: 0.75em;
+    color: #555;
+    min-width: 34px;
+    text-align: center;
+    cursor: default;
+    user-select: none;
 }
 .question-block {
     margin-bottom: 30px;
     font-size: 125%;
+    user-select: none;
+    cursor: default;
+    outline: none;
 }
-.answer-block {            
-    margin-bottom: 2px;           
-    background-color: #2e2e2e;                    
+.answer-block {
+    margin-bottom: 2px;
+    background-color: #2e2e2e;
     font-size: 100%;
     display: flex;
     flex-direction: column;
-    gap: 5px; 
+    gap: 5px;
+}
+.answer-block input[type="radio"],
+.answer-block input[type="checkbox"] {
+    outline: none;
+}
+.answer-block input[type="radio"]:focus,
+.answer-block input[type="checkbox"]:focus {
+    outline: none;
 }
 .button-container {
     position: fixed;
@@ -208,4 +262,55 @@ button:disabled {
     padding: 2px 6px;
     border-radius: 4px;
     color: #03dac6;
+}
+
+/* ── Bottom bar checkbox ─────────────────────────────────────────────────── */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.checkbox-container label {
+    cursor: pointer;
+    user-select: none;
+}
+.label-short { display: none; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 540px) {
+
+    /* Hide zoom on small screens */
+    .zoom-controls { display: none; }
+
+    /* Tighter wrapper and card */
+    .container-wrapper { padding: 10px 8px; align-items: flex-start; }
+    .container {
+        width: 100%;
+        padding: 14px 12px;
+        border-radius: 8px;
+        margin-bottom: 70px;
+    }
+
+    /* Slightly smaller question text */
+    .question-block { font-size: 110%; margin-bottom: 20px; }
+
+    /* Larger touch targets for answers */
+    .answer-block label { padding: 10px 8px; }
+
+    /* Compact bottom bar */
+    .button-container { padding: 8px 10px; gap: 6px; }
+
+    /* Smaller buttons */
+    button { padding: 9px 12px; font-size: 0.88em; }
+
+    /* Swap label text */
+    .label-full  { display: none; }
+    .label-short { display: inline; }
+
+    /* Result screen — give buttons room to wrap */
+    .result-screen button { margin: 4px 4px 0 0; }
+
+    /* Modal fits the screen */
+    .modal-content { max-width: 92vw; padding: 14px; }
 }

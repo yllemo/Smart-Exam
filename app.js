@@ -2,6 +2,22 @@ let questions = [];
 let currentQuestionIndex = 0;
 let userAnswers = [];
 
+// ── Zoom ──────────────────────────────────────────────────────────────────────
+const ZOOM_MIN  = 70;
+const ZOOM_MAX  = 150;
+const ZOOM_STEP = 10;
+let zoomLevel = parseInt(localStorage.getItem('examZoom') || '100', 10);
+
+function applyZoom() {
+    document.querySelector('.container').style.fontSize = zoomLevel + '%';
+    document.getElementById('zoom-label').textContent = zoomLevel + '%';
+    document.getElementById('zoom-out').disabled = zoomLevel <= ZOOM_MIN;
+    document.getElementById('zoom-in').disabled  = zoomLevel >= ZOOM_MAX;
+    localStorage.setItem('examZoom', zoomLevel);
+}
+function zoomIn()  { if (zoomLevel < ZOOM_MAX) { zoomLevel += ZOOM_STEP; applyZoom(); } }
+function zoomOut() { if (zoomLevel > ZOOM_MIN) { zoomLevel -= ZOOM_STEP; applyZoom(); } }
+
 function resetExam() {
     currentQuestionIndex = 0;
     userAnswers = [];
@@ -79,12 +95,11 @@ function parseQuestions(text) {
 }
 
 function loadQuestion() {
-    const progressInfo = document.getElementById("progress-info");
     const questionBlock = document.getElementById("question-block");
     const answerBlock = document.getElementById("answer-block");
     const currentQuestion = questions[currentQuestionIndex];
 
-    progressInfo.innerHTML = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+    document.getElementById("progress-text").textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
     questionBlock.innerHTML = formatMarkdown(currentQuestion.question);
     answerBlock.innerHTML = "";
 
@@ -256,6 +271,7 @@ document.getElementById("showCorrectAnswers").addEventListener("change", toggleC
 
 // Load exam from URL parameters on page load
 window.onload = function() {
+    applyZoom();
     const urlParams = new URLSearchParams(window.location.search);
 
     // ?file=content/myexam.sef  — load a .sef file by path

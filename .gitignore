@@ -1,0 +1,5 @@
+# Admin password — set on first run, never committed
+config/admin.json
+
+# Claude Code local settings
+.claude/

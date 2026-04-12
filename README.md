@@ -4,46 +4,52 @@ A lightweight, self-hosted exam simulator built around the [Smart Exam Format (.
 
 ## Features
 
-- Dark-themed, responsive UI
+- Dark-themed, mobile-responsive UI
 - Single and multiple correct answer support (radio buttons / checkboxes)
+- Font size zoom control for comfortable reading on any screen
 - "Show Answer" toggle to reveal correct answers mid-exam
 - Progress indicator and per-question navigation
 - Score summary with clickable per-question results
 - Redo incorrect answers to focus on weak spots
 - Image and link support via markdown-style syntax in questions and answers
-- URL-based exam loading — share an exam with `?file=` or embed content with `?exam=`
+- URL-based exam loading — share with `?file=` or embed content with `?exam=`
 - Password-protected admin panel to create and manage exam files from the browser
+
+## Requirements
+
+- PHP 7.4 or later
+- A web server with PHP support (Apache, Nginx) or PHP's built-in server
+
+## Quick Start
+
+```bash
+git clone https://github.com/yllemo/Smart-Exam.git
+cd Smart-Exam
+php -S localhost:8000
+```
+
+Open `http://localhost:8000` in your browser. Place `.sef` files in `content/` and they appear on the home screen automatically.
 
 ## Project Structure
 
 ```
 /
-├── index.php            # Exam simulator (reads config, lists .sef files)
-├── app.js               # Exam logic (parsing, navigation, scoring)
-├── style.css            # Stylesheet
+├── index.php                  # Exam simulator — lists exams, reads config
+├── app.js                     # Exam logic (parsing, navigation, scoring, zoom)
+├── style.css                  # Stylesheet (dark theme, responsive)
+├── favicon.svg                # Default SVG favicon
+├── AI.md                      # SEF format guide for AI integrations
 ├── config/
-│   ├── config.json      # Site title, favicon, stylesheet, description
-│   └── admin.json       # Admin password hash (bcrypt)
+│   ├── config.json            # Site title, favicon, stylesheet, description
+│   └── admin.json_example     # Template for admin credentials (see Admin Panel)
 ├── content/
-│   └── *.sef            # Exam files served on the home screen
+│   └── *.sef                  # Exam files served on the home screen
 └── admin/
-    └── index.php        # Admin panel (login, file list, SEF editor)
+    ├── index.php              # Admin panel (login, file list, SEF editor, prompt helper)
+    └── SEF_Exam_Editor.html   # Standalone offline SEF editor (no server required)
 ```
 
-## Setup
-
-1. Clone or download this repository
-2. Place your `.sef` exam files in the `content/` directory
-3. Serve with a PHP-capable web server (Apache, Nginx, or PHP's built-in server)
-4. Open `index.php` in your browser — available exams are listed automatically
-
-### Quick start with PHP built-in server
-
-```bash
-php -S localhost:8000
-```
-
-Then visit `http://localhost:8000`.
+> `config/admin.json` is excluded from the repository (see `.gitignore`). It is created automatically from `admin.json_example` on first access and holds the bcrypt password hash.
 
 ## Configuration
 
@@ -51,33 +57,35 @@ Edit `config/config.json` to customise the application:
 
 ```json
 {
-  "title": "Smart Exam Simulator",
-  "favicon": "favicon.ico",
+  "title": "Smart Exam",
+  "favicon": "favicon.svg",
   "stylesheet": "style.css",
-  "description": "Interactive exam simulator powered by Smart Exam Format"
+  "description": "Interactive exam simulator powered by Smart Exam Format (.sef)"
 }
 ```
 
 | Key | Description |
 |-----|-------------|
 | `title` | Browser tab title and page heading |
-| `favicon` | Path to favicon file (leave empty to omit) |
-| `stylesheet` | Path to CSS stylesheet |
+| `favicon` | Path to favicon file — SVG recommended |
+| `stylesheet` | Path to CSS stylesheet (swap for custom themes) |
 | `description` | Meta description for the page |
 
 ## Admin Panel
 
-Visit `/admin/` to open the password-protected admin panel.
+Visit `/admin/` to manage your exam library.
 
-On first visit you will be prompted to set an admin password — it is stored as a bcrypt hash in `config/admin.json`. From the admin panel you can:
+On first visit you are prompted to set an admin password. It is stored as a bcrypt hash in `config/admin.json` (gitignored — never overwritten by deployments).
 
-- Browse, create, edit, and delete `.sef` files in `content/`
-- Use the built-in **Question Builder** to compose and parse questions step by step before adding them to an exam
-- Read the **SEF Format help page** with syntax examples and a link to the full specification
+### Features
 
-## Adding Exams
-
-Drop any `.sef` file into the `content/` directory, or use the admin panel to create one directly. Files appear automatically on the home screen.
+| Section | Description |
+|---------|-------------|
+| **File List** | Browse all `.sef` files with size and last-modified date. Edit or delete any file. |
+| **Editor** | Split-pane editor — Question Builder on the left, raw `.sef` content on the right. Parse answer prefixes automatically, then save directly to `content/`. |
+| **SEF Format Help** | Inline syntax reference with coloured examples and a link to the full specification. |
+| **Prompt Helper** | Generates a ready-to-copy AI prompt (for Claude, ChatGPT, Gemini, etc.) that includes the full SEF format rules and your topic, difficulty, question count, and language. Paste the output straight into an AI chat to get a correctly formatted `.sef` file back. |
+| **Change Password** | Update the admin password at any time. |
 
 ## Smart Exam Format
 
@@ -90,9 +98,8 @@ Question text goes here
 -* Correct answer
 -  Wrong answer
 -  Wrong answer
--  Wrong answer
 
-Another question (multiple correct = checkboxes)
+Another question — multiple correct answers trigger checkboxes
 -* First correct answer
 -* Second correct answer
 -  Wrong answer
@@ -128,22 +135,22 @@ Images open in a lightbox overlay when clicked.
 ## Ideas for Future Development
 
 ### AI-Generated Questions
-Integrate an LLM API (e.g. Claude, GPT) to generate `.sef` question sets from a topic, a document, or a URL. The admin panel could include a prompt field that sends a request and writes the response directly into a new `.sef` file, ready for review and publishing.
+The admin **Prompt Helper** already generates structured prompts for any AI assistant. A natural next step is a direct API integration — send a topic to an LLM and have the response written straight into a new `.sef` file ready for review.
 
 ### Adaptive Learning / Diminishing Returns
-Track answer history per question (in `localStorage` or a lightweight backend) and apply a spaced-repetition or diminishing-returns algorithm. Questions answered correctly multiple times in a row appear less frequently; recently failed questions surface more often. This would turn the simulator into a genuine learning tool rather than a one-shot practice test.
+Track answer history per question (in `localStorage` or a lightweight backend) and apply a spaced-repetition algorithm. Questions answered correctly multiple times appear less frequently; recently failed questions surface more often — turning the simulator into a genuine study tool.
 
 ### Markdown and Mermaid Support
-Extend the question and answer renderer to parse full Markdown (bold, italic, code blocks, tables) and render [Mermaid](https://mermaid.js.org/) diagram definitions inline. This would allow questions that include flowcharts, sequence diagrams, ER diagrams, and other visual content — useful for technical and systems-design exams.
+Extend the renderer to parse full Markdown (bold, italic, code blocks, tables) and render [Mermaid](https://mermaid.js.org/) diagrams inline. This would enable questions containing flowcharts, sequence diagrams, and ER diagrams — useful for technical and systems-design exams.
 
 ### Themes — Dark / Light Mode and Custom Styles
-Add a theme switcher (persisted in `localStorage`) and ship at least a light mode alongside the current dark theme. The `stylesheet` config key already supports swapping the CSS file entirely, so named theme bundles (e.g. `theme-light.css`, `theme-high-contrast.css`) could be selectable from the config or via a UI toggle.
+Add a theme switcher persisted in `localStorage`. The `stylesheet` key in `config.json` already supports swapping the CSS file entirely, so named theme bundles (`theme-light.css`, `theme-high-contrast.css`) could be selectable from the config or via a UI toggle.
 
 ### Multilingual Support
-Add a `locale` key to `config/config.json` to localise UI strings (button labels, progress text, result messages). Question files could carry a language tag in their filename (e.g. `networking-fr.sef`) and the home screen could filter or group by language. Right-to-left language support would require a small CSS addition (`dir="rtl"`).
+Add a `locale` key to `config/config.json` to localise UI strings. Question files could carry a language tag in their filename (`networking-fr.sef`) and the home screen could filter or group by language. RTL support requires a small CSS addition.
 
 ---
 
 ## Links
 
-- [Smart Exam Format specification](https://github.com/yllemo/Smart-Exam-Format) — full `.sef` syntax reference and examples
+- [Smart Exam Format specification](https://github.com/yllemo/Smart-Exam-Format) — full `.sef` syntax reference, AI integration guide, and examples
