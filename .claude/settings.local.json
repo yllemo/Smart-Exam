@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l /mnt/g/_code/SEF/Smart-Exam/admin/index.php)",
+      "Bash(php -l /mnt/g/_code/SEF/Smart-Exam/index.php)"
+    ]
+  }
+}
