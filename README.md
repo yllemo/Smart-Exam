@@ -11,7 +11,10 @@ A lightweight, self-hosted exam simulator built around the [Smart Exam Format (.
 - Progress indicator and per-question navigation
 - Score summary with clickable per-question results
 - Redo incorrect answers to focus on weak spots
-- Image and link support via markdown-style syntax in questions and answers
+- **Full Markdown support** in questions and answers (bold, italic, code, links, images)
+- **Mermaid diagram support** — embed flowcharts, sequence diagrams, and more
+- **YAML frontmatter support** — add exam metadata (title, description)
+- **AI-powered question generator** with OpenAI integration
 - URL-based exam loading — share with `?file=` or embed content with `?exam=`
 - Password-protected admin panel to create and manage exam files from the browser
 
@@ -35,21 +38,32 @@ Open `http://localhost:8000` in your browser. Place `.sef` files in `content/` a
 ```
 /
 ├── index.php                  # Exam simulator — lists exams, reads config
-├── app.js                     # Exam logic (parsing, navigation, scoring, zoom)
+├── app.js                     # Exam logic (parsing, navigation, scoring, zoom, AI)
 ├── style.css                  # Stylesheet (dark theme, responsive)
 ├── favicon.svg                # Default SVG favicon
 ├── AI.md                      # SEF format guide for AI integrations
+├── .htaccess                  # Security settings (directory listing, config protection)
 ├── config/
 │   ├── config.json            # Site title, favicon, stylesheet, description
-│   └── admin.json_example     # Template for admin credentials (see Admin Panel)
+│   ├── admin.json_example     # Template for admin credentials (see Admin Panel)
+│   ├── ai.json_example        # Template for AI configuration (API keys)
+│   └── .htaccess              # Blocks direct access to config files
 ├── content/
-│   └── *.sef                  # Exam files served on the home screen
-└── admin/
-    ├── index.php              # Admin panel (login, file list, SEF editor, prompt helper)
-    └── SEF_Exam_Editor.html   # Standalone offline SEF editor (no server required)
+│   ├── *.sef                  # Exam files served on the home screen
+│   ├── images/                # Images referenced in exams
+│   └── index.html             # Redirect to parent (security)
+├── admin/
+│   ├── index.php              # Admin panel (login, file list, SEF editor, prompt helper)
+│   └── SEF_Exam_Editor.html   # Standalone offline SEF editor (no server required)
+├── ai/
+│   └── index.php              # AI-powered question generator with OpenAI integration
+└── js/
+    ├── marked.min.js          # Markdown rendering library
+    └── mermaid.min.js         # Mermaid diagram rendering library
 ```
 
-> `config/admin.json` is excluded from the repository (see `.gitignore`). It is created automatically from `admin.json_example` on first access and holds the bcrypt password hash.
+> **Security Note:** `config/admin.json` and `config/ai.json` are excluded from the repository (see `.gitignore`). 
+> They contain sensitive information (password hashes and API keys) and should never be committed to version control.
 
 ## Configuration
 
@@ -73,7 +87,7 @@ Edit `config/config.json` to customise the application:
 
 ## Admin Panel
 
-Visit `/admin/` to manage your exam library.
+Visit `/admin/` to manage your exam library. Visit `/ai/` for the AI-powered question generator.
 
 On first visit you are prompted to set an admin password. It is stored as a bcrypt hash in `config/admin.json` (gitignored — never overwritten by deployments).
 
@@ -81,47 +95,87 @@ On first visit you are prompted to set an admin password. It is stored as a bcry
 
 | Section | Description |
 |---------|-------------|
-| **File List** | Browse all `.sef` files with size and last-modified date. Edit or delete any file. |
-| **Editor** | Split-pane editor — Question Builder on the left, raw `.sef` content on the right. Parse answer prefixes automatically, then save directly to `content/`. |
-| **SEF Format Help** | Inline syntax reference with coloured examples and a link to the full specification. |
-| **Prompt Helper** | Generates a ready-to-copy AI prompt (for Claude, ChatGPT, Gemini, etc.) that includes the full SEF format rules and your topic, difficulty, question count, and language. Paste the output straight into an AI chat to get a correctly formatted `.sef` file back. |
+| **File List** | Browse all `.sef` files with metadata (title, description, question count), size and last-modified date. Edit or delete any file. |
+| **Editor** | Split-pane editor with formatting toolbar — Question Builder on the left, raw `.sef` content on the right. Supports frontmatter insertion, comments, Mermaid diagrams, and content normalization. |
+| **SEF Format Help** | Comprehensive syntax reference with examples for frontmatter, Markdown, Mermaid diagrams, and advanced features. |
+| **Prompt Helper** | Generates ready-to-copy AI prompts for ChatGPT, Claude, Gemini, etc. with full SEF format rules and customizable parameters. |
 | **Change Password** | Update the admin password at any time. |
+
+### AI Generator (`/ai/`)
+
+The AI Generator creates new exam questions based on existing results, focusing on topics where students made mistakes.
+
+- **Automatic Analysis**: Analyzes exam results to identify knowledge gaps and misconceptions
+- **OpenAI Integration**: Uses GPT-4o or compatible models to generate targeted questions  
+- **Smart Formatting**: Outputs properly formatted SEF with frontmatter, Mermaid diagrams, and Markdown
+- **Secure**: API keys stored in `config/ai.json` (gitignored), admin authentication required for saving files
+- **Flexible**: Customizable question count, language, and additional requirements
 
 ## Smart Exam Format
 
-Exam files use the [Smart Exam Format (.sef)](https://github.com/yllemo/Smart-Exam-Format) — a plain-text format for writing multiple-choice questions.
+Exam files use the [Smart Exam Format (.sef)](https://github.com/yllemo/Smart-Exam-Format) — a plain-text format for writing multiple-choice questions with modern features.
 
-### Syntax
+### Enhanced Syntax
 
 ```
-Question text goes here
--* Correct answer
--  Wrong answer
--  Wrong answer
+---
+name: Web Development Quiz
+description: HTML, CSS, and JavaScript fundamentals
+---
 
-Another question — multiple correct answers trigger checkboxes
--* First correct answer
--* Second correct answer
--  Wrong answer
--  Wrong answer
+# ── HTML Questions ─────────────────────────────────────────────
+
+Which **tag** creates a hyperlink in HTML?
+-* <a>
+-  <link>
+-  <href>
+
+```mermaid
+flowchart TD
+    HTML[HTML Document] --> HEAD[<head>]
+    HTML --> BODY[<body>]
+    HEAD --> TITLE[<title>]
+    BODY --> H1[<h1>]
+    BODY --> P[<p>]
 ```
+What does this diagram represent?
+-* Basic HTML document structure
+-  CSS styling hierarchy
+-  JavaScript execution flow
+
+```markdown
+Which CSS property controls the **text color**?
+```
+-* color
+-  text-color
+-  font-color
+```
+
+### New Features
+
+- **YAML Frontmatter**: Add exam metadata (name, description) at the top
+- **Comments**: Lines starting with `#` are ignored (use for organization)  
+- **Mermaid Diagrams**: Embed flowcharts, sequence diagrams, and more with ` ```mermaid ` blocks
+- **Full Markdown**: Bold, italic, code, links, images, lists, and blockquotes in questions
+- **Markdown Questions**: Wrap question text in ` ```markdown ` blocks for rich formatting
+- **Visual Separators**: Lines starting with `---` create visual sections (ignored by parser)
+
+### Basic Syntax
 
 - Lines prefixed with `-*` are correct answers
-- Lines prefixed with `-` are incorrect answers
+- Lines prefixed with `-` are incorrect answers  
 - Question blocks are separated by a blank line
 - Multiple `-*` lines on one question automatically switch the UI to checkboxes
 
 ### Images and links
 
-Markdown-style links work inside question and answer text:
+Images referenced in questions open in a lightbox overlay:
 
 ```
-What does this diagram show? [View diagram](images/chart.png)
--* A bar chart
--  A pie chart
+What does this chart show? ![Sales Data](images/sales-chart.png)
+-* Monthly revenue trends
+-  Employee headcount
 ```
-
-Images open in a lightbox overlay when clicked.
 
 ## URL Parameters
 
@@ -130,24 +184,70 @@ Images open in a lightbox overlay when clicked.
 | `file` | Load a `.sef` file by server path | `?file=content/myexam.sef` |
 | `exam` | Load an exam from base64-encoded SEF text | `?exam=<base64>` |
 
+## Configuration
+
+Edit `config/config.json` to customise the application:
+
+```json
+{
+  "title": "Smart Exam",
+  "favicon": "favicon.svg",
+  "stylesheet": "style.css",
+  "description": "Interactive exam simulator powered by Smart Exam Format (.sef)"
+}
+```
+
+| Key | Description |
+|-----|-------------|
+| `title` | Browser tab title and page heading |
+| `favicon` | Path to favicon file — SVG recommended |
+| `stylesheet` | Path to CSS stylesheet (swap for custom themes) |
+| `description` | Meta description for the page |
+
+### AI Configuration
+
+To enable the AI Generator, create `config/ai.json`:
+
+```json
+{
+  "api_url": "https://api.openai.com/v1",
+  "api_key": "your-openai-api-key",
+  "model": "gpt-4o"
+}
+```
+
+> ⚠️ **Security**: Never commit `config/ai.json` to version control. Use `config/ai.json_example` as a template.
+
 ---
 
 ## Ideas for Future Development
 
-### AI-Generated Questions
-The admin **Prompt Helper** already generates structured prompts for any AI assistant. A natural next step is a direct API integration — send a topic to an LLM and have the response written straight into a new `.sef` file ready for review.
-
-### Adaptive Learning / Diminishing Returns
+### Adaptive Learning / Spaced Repetition
 Track answer history per question (in `localStorage` or a lightweight backend) and apply a spaced-repetition algorithm. Questions answered correctly multiple times appear less frequently; recently failed questions surface more often — turning the simulator into a genuine study tool.
 
-### Markdown and Mermaid Support
-Extend the renderer to parse full Markdown (bold, italic, code blocks, tables) and render [Mermaid](https://mermaid.js.org/) diagrams inline. This would enable questions containing flowcharts, sequence diagrams, and ER diagrams — useful for technical and systems-design exams.
+### Advanced AI Features
+- **Multi-language question translation** using AI
+- **Difficulty adjustment** based on user performance
+- **Question validation** to ensure quality and clarity
+- **Bulk question generation** from uploaded documents (PDFs, slides)
 
-### Themes — Dark / Light Mode and Custom Styles
-Add a theme switcher persisted in `localStorage`. The `stylesheet` key in `config.json` already supports swapping the CSS file entirely, so named theme bundles (`theme-light.css`, `theme-high-contrast.css`) could be selectable from the config or via a UI toggle.
+### Themes and Accessibility  
+- **Light/Dark mode toggle** persisted in `localStorage`
+- **High contrast themes** for accessibility
+- **Font size persistence** across sessions
+- **Screen reader optimization** for visually impaired users
 
-### Multilingual Support
-Add a `locale` key to `config/config.json` to localise UI strings. Question files could carry a language tag in their filename (`networking-fr.sef`) and the home screen could filter or group by language. RTL support requires a small CSS addition.
+### Collaboration Features
+- **Multi-user scoring** and leaderboards
+- **Question sharing** between instances
+- **Exam templates** and question banks
+- **Export to other formats** (PDF, Word, Moodle XML)
+
+### Analytics and Insights
+- **Performance analytics** with charts and trends
+- **Question difficulty analysis** based on success rates  
+- **Learning path recommendations** 
+- **Progress tracking** over time
 
 ---
 
