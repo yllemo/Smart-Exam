@@ -1,5 +1,8 @@
 # Admin password — set on first run, never committed
 config/admin.json
 
+# AI config contains API key — never committed
+config/ai.json
+
 # Claude Code local settings
 .claude/

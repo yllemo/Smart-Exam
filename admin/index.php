@@ -37,17 +37,62 @@ function sanitizeFilename(string $name): string {
     return ($name ?: 'exam') . '.sef';
 }
 
+// Parse YAML frontmatter from a .sef file (reads first 1 KB only).
+function parseSefMeta(string $path): array {
+    $chunk = @file_get_contents($path, false, null, 0, 1024);
+    if (!$chunk || !preg_match('/^---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)/s', $chunk, $m)) return [];
+    $meta = [];
+    foreach (explode("\n", $m[1]) as $line) {
+        if (preg_match('/^(\w[\w\s]*?)\s*:\s*(.+)$/', trim($line), $kv)) {
+            $meta[trim($kv[1])] = trim($kv[2]);
+        }
+    }
+    return $meta;
+}
+
+// Count answerable question blocks (blocks that contain at least one - answer line).
+function countSefQuestions(string $path): int {
+    $lines = @file($path, FILE_IGNORE_NEW_LINES);
+    if (!$lines) return 0;
+    $i = 0;
+    if (isset($lines[0]) && trim($lines[0]) === '---') {
+        for ($i = 1; $i < count($lines); $i++) {
+            if (preg_match('/^---\s*$/', trim($lines[$i]))) { $i++; break; }
+        }
+    }
+    $count = 0; $hasAnswers = false; $inBlock = false; $inCode = false;
+    for (; $i < count($lines); $i++) {
+        $t = trim($lines[$i]);
+        if ($inCode) { if (preg_match('/^```\s*$/', $t)) $inCode = false; continue; }
+        if (str_starts_with($t, '```')) { $inCode = true; $inBlock = true; continue; }
+        if ($t === '') {
+            if ($inBlock && $hasAnswers) $count++;
+            $inBlock = $hasAnswers = false;
+            continue;
+        }
+        if ($t === '' || $t[0] === '#' || str_starts_with($t, '---')) continue;
+        if ($t[0] === '-') { $hasAnswers = true; $inBlock = true; }
+        else $inBlock = true;
+    }
+    if ($inBlock && $hasAnswers) $count++;
+    return $count;
+}
+
 function getSefFiles(): array {
     if (!is_dir(CONTENT_DIR)) return [];
     $files = [];
     foreach (scandir(CONTENT_DIR) as $file) {
         if (pathinfo($file, PATHINFO_EXTENSION) === 'sef') {
             $path = CONTENT_DIR . '/' . $file;
+            $meta = parseSefMeta($path);
             $files[] = [
-                'name'     => $file,
-                'basename' => pathinfo($file, PATHINFO_FILENAME),
-                'size'     => filesize($path),
-                'modified' => filemtime($path),
+                'name'      => $file,
+                'basename'  => pathinfo($file, PATHINFO_FILENAME),
+                'size'      => filesize($path),
+                'modified'  => filemtime($path),
+                'title'     => $meta['name']        ?? '',
+                'desc'      => $meta['description'] ?? '',
+                'questions' => countSefQuestions($path),
             ];
         }
     }
@@ -408,6 +453,21 @@ $pageTitle = 'Smart Exam Admin';
         }
         .editor-toolbar .form-row { flex: 1; min-width: 200px; }
 
+        .format-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .format-toolbar .btn {
+            font-size: 0.78em;
+            padding: 4px 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #aaa;
+        }
+        .format-toolbar .btn:hover { background: #383838; color: #e0e0e0; border-color: #666; }
+
         /* ── Breadcrumb ── */
         .breadcrumb {
             font-size: 0.85em;
@@ -629,6 +689,7 @@ $pageTitle = 'Smart Exam Admin';
         <a href="../index.php" class="btn btn-secondary btn-sm">View Site</a>
         <a href="index.php?action=help" class="btn btn-secondary btn-sm">SEF Format</a>
         <a href="index.php?action=prompt" class="btn btn-secondary btn-sm">Prompt Helper</a>
+        <a href="../ai/" class="btn btn-primary btn-sm">✨ AI Generator</a>
         <a href="index.php?action=change_password" class="btn btn-secondary btn-sm">Change Password</a>
         <a href="index.php?action=logout" class="btn btn-danger btn-sm">Logout</a>
     </div>
@@ -658,16 +719,26 @@ $pageTitle = 'Smart Exam Admin';
         <table class="file-table">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Size</th>
-                    <th>Last Modified</th>
-                    <th></th>
+                    <th>Exam</th>
+                    <th style="width:60px">Qs</th>
+                    <th style="width:62px">Size</th>
+                    <th style="width:130px">Modified</th>
+                    <th style="width:110px"></th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($sefFiles as $f): ?>
                 <tr>
-                    <td><span class="file-name"><?= htmlspecialchars($f['basename']) ?></span><span class="file-meta">.sef</span></td>
+                    <td>
+                        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
+                            <span class="file-name"><?= htmlspecialchars($f['title'] ?: $f['basename']) ?></span>
+                            <span class="file-meta" style="font-size:.78em;"><?= htmlspecialchars($f['basename']) ?>.sef</span>
+                        </div>
+                        <?php if ($f['desc']): ?>
+                        <div class="file-meta" style="margin-top:2px;font-size:.82em;"><?= htmlspecialchars($f['desc']) ?></div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="file-meta"><?= $f['questions'] ?></td>
                     <td class="file-meta"><?= fmtSize($f['size']) ?></td>
                     <td class="file-meta"><?= date('Y-m-d H:i', $f['modified']) ?></td>
                     <td>
@@ -736,21 +807,29 @@ Rome"></textarea>
                     <p class="hint">
                         <b>Parse</b> adds <code>-</code> prefixes to answer lines automatically.<br>
                         Change <code>-</code> to <code>-*</code> on correct answers, then click <b>Add to Exam</b>.<br>
-                        Multiple <code>-*</code> lines = multiple-correct (checkbox) question.
+                        Multiple <code>-*</code> lines = checkbox question. Question text supports
+                        <code>**bold**</code>, <code>*italic*</code>, and <code>[label](url)</code> links.
                     </p>
                 </div>
 
                 <!-- Right: Exam Content -->
                 <div class="panel">
                     <h3>Exam Content (.sef)</h3>
+                    <div class="format-toolbar">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="insertFrontmatter()" title="Insert YAML frontmatter at the top">+ Frontmatter</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="insertSnippet('# ')" title="Insert a comment line"># Comment</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="insertSnippet('\`\`\`mermaid\nflowchart TD\n    A[Start] --> B[End]\n\`\`\`\n')" title="Insert mermaid diagram block">Mermaid</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="insertSnippet('\`\`\`markdown\nQuestion with **bold** and *italic*\n\`\`\`\n')" title="Insert markdown question block">Markdown Q</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="normalizeContent()" title="Remove extra blank lines and trim whitespace">Normalize</button>
+                    </div>
                     <textarea name="content" id="exam-content"><?= htmlspecialchars($editContent) ?></textarea>
                     <div class="panel-buttons">
                         <button type="button" class="btn btn-secondary" onclick="clearExam()" title="Clear exam content">Clear All</button>
                         <button type="button" class="btn btn-secondary" onclick="copyExam()">Copy to Clipboard</button>
                     </div>
                     <p class="hint">
-                        This is the raw <code>.sef</code> file content — edit directly or use the Question Builder on the left.
-                        Questions are separated by blank lines.
+                        Raw <code>.sef</code> file. Use the toolbar above to quickly insert frontmatter, comments, or code blocks.
+                        Questions are separated by blank lines. <code>#</code> lines and <code>---</code> lines are ignored by the simulator.
                     </p>
                 </div>
             </div>
@@ -797,23 +876,55 @@ Rome"></textarea>
 <!-- ── SEF FORMAT HELP ────────────────────────────────────── -->
     <div class="breadcrumb">
         <a href="index.php">Exam Files</a>
-        <span>›</span> SEF Format Help
+        <span>›</span> SEF Format Reference
     </div>
 
     <div class="card">
         <h2 style="margin-top:0;">Smart Exam Format (.sef)</h2>
-        <p style="color:#b0b0b0;font-size:.95em;margin-bottom:0;">
-            A plain-text format for writing multiple-choice exam questions.
-            Each <code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">.sef</code> file
-            is a simple text document — no special tools required to create or edit it.
+        <p style="color:#b0b0b0;font-size:.95em;margin-bottom:4px;">
+            A plain-text format for multiple-choice exams. Each <code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">.sef</code>
+            file is plain UTF-8 text — editable in any text editor or AI assistant.
         </p>
 
         <div class="help-grid">
 
-            <!-- Basic structure -->
+            <!-- ── Frontmatter ── -->
             <div class="help-section">
-                <h3>Basic Structure</h3>
-                <p>Each question block starts with the question text on its own line, followed by answer options. Blocks are separated by a blank line.</p>
+                <h3>YAML Frontmatter</h3>
+                <p>An optional metadata block at the very top of the file, delimited by <code>---</code>.
+                   Supports <code>name</code> and <code>description</code>. These are displayed on the exam
+                   selection screen but <em>not</em> shown during the exam itself.</p>
+                <div class="sef-example"><span class="sef-comment">---
+name: Web Fundamentals
+description: HTTP, HTML, and browser basics.
+---</span>
+
+<span class="sef-q">First question goes here…</span></div>
+            </div>
+
+            <!-- ── Comments ── -->
+            <div class="help-section">
+                <h3>Comments &amp; Section Separators</h3>
+                <p>Lines beginning with <code>#</code> are comments — silently ignored by the simulator.
+                   Lines beginning with <code>---</code> are visual section separators, also ignored.
+                   Neither breaks question parsing.</p>
+                <div class="sef-example"><span class="sef-comment"># ── Geography ───────────────────</span>
+
+<span class="sef-q">Capital of France?</span>
+<span class="sef-ok">-* Paris</span>
+<span class="sef-no">-  Berlin</span>
+
+<span class="sef-comment">--- Astronomy ---</span>
+
+<span class="sef-q">The Red Planet?</span>
+<span class="sef-ok">-* Mars</span>
+<span class="sef-no">-  Venus</span></div>
+            </div>
+
+            <!-- ── Basic structure ── -->
+            <div class="help-section">
+                <h3>Basic Question Structure</h3>
+                <p>One or more question-text lines, then answer lines. Blocks are separated by a blank line.</p>
                 <div class="sef-example"><span class="sef-q">What is the capital of France?</span>
 <span class="sef-ok">-* Paris</span>
 <span class="sef-no">-  Berlin</span>
@@ -826,99 +937,130 @@ Rome"></textarea>
 <span class="sef-no">-  PHP</span></div>
             </div>
 
-            <!-- Answer prefixes -->
+            <!-- ── Answer prefixes ── -->
             <div class="help-section">
                 <h3>Answer Prefixes</h3>
-                <p>Each answer line must start with one of two prefixes:</p>
+                <p>Every answer line starts with a prefix. Multiple <code>-*</code> lines make it a
+                   checkbox (select-all) question.</p>
                 <ul>
-                    <li><code>-*</code> &nbsp;<span class="tag tag-correct">correct</span> — this answer is right</li>
-                    <li><code>-</code> &nbsp;&nbsp;<span class="tag tag-wrong">wrong</span> — this answer is a distractor</li>
+                    <li><code>-*</code>&nbsp; <span class="tag tag-correct">correct</span></li>
+                    <li><code>-</code>&nbsp;&nbsp;&nbsp;<span class="tag tag-wrong">wrong</span></li>
                 </ul>
-                <p>The text after the prefix (and optional space) is the answer label shown to the student.</p>
-                <div class="sef-example"><span class="sef-ok">-* Correct answer text</span>
-<span class="sef-no">-  Wrong answer text</span>
-<span class="sef-no">-  Another wrong answer</span></div>
-            </div>
-
-            <!-- Multiple correct answers -->
-            <div class="help-section">
-                <h3>Multiple Correct Answers</h3>
-                <p>Mark more than one answer with <code>-*</code> to create a <em>select-all-that-apply</em> question. The simulator automatically switches to checkboxes instead of radio buttons.</p>
-                <div class="sef-example"><span class="sef-q">Which are primary colors?</span>
+                <div class="sef-example"><span class="sef-q">Primary colors (RYB)?</span>
 <span class="sef-ok">-* Red</span>
-<span class="sef-ok">-* Blue</span>
 <span class="sef-ok">-* Yellow</span>
+<span class="sef-ok">-* Blue</span>
 <span class="sef-no">-  Green</span>
 <span class="sef-no">-  Purple</span></div>
             </div>
 
-            <!-- Images & links -->
+            <!-- ── Markdown ── -->
             <div class="help-section">
-                <h3>Images &amp; Links</h3>
-                <p>Both question text and answer text support inline markdown-style links. When clicked, images open in a lightbox overlay.</p>
-                <div class="sef-example"><span class="sef-q">What does this diagram show?
+                <h3>Markdown in Questions</h3>
+                <p>Question text is rendered as Markdown: <strong>bold</strong>, <em>italic</em>,
+                   inline <code>code</code>, images, and links are all supported.</p>
+                <div class="sef-example"><span class="sef-q">Which **data structure** uses LIFO?</span>
+<span class="sef-ok">-* Stack</span>
+<span class="sef-no">-  Queue</span>
+
+<span class="sef-q">What does this show?
 <span style="color:#64b5f6;">[View diagram](images/diagram.png)</span></span>
-<span class="sef-ok">-* A binary search tree</span>
+<span class="sef-ok">-* A binary tree</span>
 <span class="sef-no">-  A linked list</span></div>
-                <p style="margin-top:10px;">Syntax: <code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">[label](url)</code> — the URL can be relative or absolute.</p>
+                <p style="margin-top:8px;font-size:.85em;color:#888;">
+                    Links whose URL ends in <code>.png</code>, <code>.jpg</code>, <code>.svg</code>, etc.
+                    open in a lightbox when clicked.
+                </p>
             </div>
 
-            <!-- Whitespace rules -->
+            <!-- ── Markdown block ── -->
             <div class="help-section">
-                <h3>Whitespace Rules</h3>
-                <ul>
-                    <li>Blank lines <strong>between</strong> question blocks are required.</li>
-                    <li>Blank lines <strong>within</strong> a question block are ignored.</li>
-                    <li>Leading and trailing whitespace on each line is stripped.</li>
-                    <li>The file should be saved as <strong>UTF-8</strong> plain text.</li>
-                </ul>
+                <h3>Markdown Question Block</h3>
+                <p>Wrap the question text in a <code>```markdown</code> fence to use Markdown
+                   formatting. The fence is stripped — only the rendered content is displayed.</p>
+                <div class="sef-example"><span style="color:#64b5f6;">```markdown</span>
+<span class="sef-q">Which **planet** is the *Red Planet*?</span>
+<span style="color:#64b5f6;">```</span>
+<span class="sef-no">-  Earth</span>
+<span class="sef-ok">-* Mars</span>
+<span class="sef-no">-  Jupiter</span></div>
             </div>
 
-            <!-- URL loading -->
-            <div class="help-section">
-                <h3>URL Parameters</h3>
-                <p>The simulator supports loading an exam directly via URL:</p>
-                <ul>
-                    <li><code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">?file=content/myexam.sef</code><br>
-                        <span style="font-size:.85em;color:#888;">Load a file from the server by path.</span></li>
-                    <li style="margin-top:8px;"><code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">?exam=&lt;base64&gt;</code><br>
-                        <span style="font-size:.85em;color:#888;">Load an exam from a base64-encoded string.</span></li>
-                </ul>
+            <!-- ── Mermaid ── -->
+            <div class="help-section" style="grid-column: 1 / -1;">
+                <h3>Mermaid Diagrams (<code>```mermaid</code>)</h3>
+                <p>Add a <code>```mermaid</code> fence anywhere in the question block to embed a live diagram.
+                   All Mermaid diagram types are supported (flowchart, sequence, pie, gantt, …).</p>
+                <div class="sef-example"><span class="sef-q">What does this flowchart describe?</span>
+<span style="color:#64b5f6;">```mermaid</span>
+<span style="color:#c8c8ff;">flowchart TD
+    A[Christmas] -->|Get money| B(Go shopping)
+    B --> C{Let me think}
+    C -->|One| D[Laptop]
+    C -->|Two| E[iPhone]
+    C -->|Three| F[fa:fa-car Car]</span>
+<span style="color:#64b5f6;">```</span>
+<span class="sef-ok">-* A decision tree for spending money</span>
+<span class="sef-no">-  A deployment pipeline</span>
+<span class="sef-no">-  An authentication flow</span></div>
             </div>
 
-            <!-- Full example -->
+            <!-- ── Full example ── -->
             <div class="help-section" style="grid-column: 1 / -1;">
                 <h3>Complete Example File</h3>
-                <div class="sef-example"><span class="sef-comment"># Questions are separated by a blank line
-# Lines starting with # are treated as question text (no special comment syntax in SEF)</span>
+                <div class="sef-example"><span class="sef-comment">---
+name: Web Fundamentals
+description: HTTP, HTML, and browser basics.
+---</span>
+
+<span class="sef-comment"># ── HTTP ─────────────────────────────────────────────────────</span>
 
 <span class="sef-q">What does HTTP stand for?</span>
 <span class="sef-ok">-* HyperText Transfer Protocol</span>
 <span class="sef-no">-  HyperText Transmission Protocol</span>
 <span class="sef-no">-  High Transfer Text Protocol</span>
-<span class="sef-no">-  Hyper Transfer Text Process</span>
 
-<span class="sef-q">Which of the following are valid HTTP methods?</span>
+<span class="sef-q">Which are valid HTTP methods?</span>
 <span class="sef-ok">-* GET</span>
 <span class="sef-ok">-* POST</span>
 <span class="sef-ok">-* DELETE</span>
 <span class="sef-no">-  FETCH</span>
-<span class="sef-no">-  TRANSMIT</span>
 
-<span class="sef-q">What is the default HTTP port?</span>
-<span class="sef-ok">-* 80</span>
-<span class="sef-no">-  443</span>
-<span class="sef-no">-  8080</span>
-<span class="sef-no">-  21</span></div>
+<span class="sef-comment"># ── Rendering ────────────────────────────────────────────────</span>
+
+<span style="color:#64b5f6;">```markdown</span>
+<span class="sef-q">Which **tag** defines the page title in the browser tab?</span>
+<span style="color:#64b5f6;">```</span>
+<span class="sef-ok">-* &lt;title&gt;</span>
+<span class="sef-no">-  &lt;h1&gt;</span>
+<span class="sef-no">-  &lt;head&gt;</span>
+
+<span class="sef-q">What does this request/response cycle show?</span>
+<span style="color:#64b5f6;">```mermaid</span>
+<span style="color:#c8c8ff;">sequenceDiagram
+    Browser->>Server: GET /index.html
+    Server-->>Browser: 200 OK + HTML</span>
+<span style="color:#64b5f6;">```</span>
+<span class="sef-ok">-* A basic HTTP GET request</span>
+<span class="sef-no">-  A WebSocket handshake</span></div>
+            </div>
+
+            <!-- ── URL params ── -->
+            <div class="help-section" style="grid-column: 1 / -1;">
+                <h3>URL Parameters</h3>
+                <p>Load an exam directly via URL — useful for sharing or deep-linking:</p>
+                <ul>
+                    <li><code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">?file=content/myexam.sef</code> — load a file by server path</li>
+                    <li style="margin-top:6px;"><code style="background:#2c2c2c;padding:1px 5px;border-radius:3px;color:#03dac6;">?exam=&lt;base64&gt;</code> — load from a base64-encoded string</li>
+                </ul>
             </div>
 
         </div><!-- /.help-grid -->
 
-        <!-- GitHub reference box -->
         <div class="ref-box">
             <div class="ref-box-text">
                 <h3>Smart Exam Format — Full Specification</h3>
-                <p>The complete format specification, changelog, and additional examples are maintained in the official repository on GitHub.</p>
+                <p>Complete specification, changelog, and integration examples on GitHub.</p>
             </div>
             <a href="https://github.com/yllemo/Smart-Exam-Format" target="_blank" rel="noopener" class="btn btn-primary">
                 View on GitHub &rarr;
@@ -1030,6 +1172,65 @@ Rome"></textarea>
 </div><!-- /.main -->
 
 <script>
+// ── Formatting toolbar ──────────────────────────────────────────────────────
+
+function insertAtCursor(ta, text) {
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
+    const pos = start + text.length;
+    ta.setSelectionRange(pos, pos);
+    ta.focus();
+}
+
+function insertSnippet(text) {
+    const ta = document.getElementById('exam-content');
+    if (!ta) return;
+    // Ensure there's a newline before the snippet if we're mid-content
+    const before = ta.value.substring(0, ta.selectionStart);
+    const prefix = (before.length > 0 && !before.endsWith('\n')) ? '\n' : '';
+    insertAtCursor(ta, prefix + text);
+}
+
+function insertFrontmatter() {
+    const ta = document.getElementById('exam-content');
+    if (!ta) return;
+    if (ta.value.trimStart().startsWith('---')) {
+        alert('Frontmatter already present at the top of the file.');
+        return;
+    }
+    const tpl = '---\nname: \ndescription: \n---\n\n';
+    ta.value = tpl + ta.value;
+    // Place cursor right after "name: "
+    const pos = tpl.indexOf('name: ') + 'name: '.length;
+    ta.setSelectionRange(pos, pos);
+    ta.focus();
+}
+
+function normalizeContent() {
+    const ta = document.getElementById('exam-content');
+    if (!ta || !ta.value.trim()) return;
+    let lines = ta.value.split('\n');
+    // Trim trailing whitespace from each line
+    lines = lines.map(l => l.trimEnd());
+    // Collapse 3+ consecutive blank lines into 2
+    const out = [];
+    let blanks = 0;
+    for (const line of lines) {
+        if (line === '') {
+            blanks++;
+            if (blanks <= 2) out.push(line);
+        } else {
+            blanks = 0;
+            out.push(line);
+        }
+    }
+    // Remove leading/trailing blank lines
+    while (out.length && out[0] === '') out.shift();
+    while (out.length && out[out.length - 1] === '') out.pop();
+    ta.value = out.join('\n') + '\n';
+}
+
 // ── Question Builder ────────────────────────────────────────────────────────
 
 function parseQuestion() {
@@ -1092,22 +1293,31 @@ const SEF_RULES = `\
 
 SEF is a plain-text format for multiple-choice exam questions.
 
-### Structure
-- One question per block. The FIRST line of a block is the question text.
-- Every answer option line starts with a hyphen prefix:
+### Optional YAML frontmatter (at the very top of the file)
+---
+name: Exam Title
+description: Short description shown on the start page.
+---
+
+### Comments and section separators (ignored by the simulator)
+# This is a comment — ignored completely
+--- This is a section separator — also ignored
+
+### Question block structure
+- One question per block. Question text comes first (one or more lines).
+- Answer lines start with a hyphen prefix:
     -* answer text   ← CORRECT answer
     -  answer text   ← WRONG answer (the space after - is optional)
 - Blocks are separated by exactly ONE blank line.
-- No numbering, no bullets, no headers, no markdown in the structure itself.
 
-### Single-correct example (radio buttons in the simulator)
+### Single-correct example (radio buttons)
 What is the capital of France?
 -* Paris
 - Berlin
 - Madrid
 - Rome
 
-### Multiple-correct example (checkboxes in the simulator)
+### Multiple-correct example (checkboxes)
 Which of these are primary colors?
 -* Red
 -* Blue
@@ -1115,13 +1325,40 @@ Which of these are primary colors?
 - Green
 - Purple
 
+### Markdown in question text (rendered by the simulator)
+Which **data structure** uses LIFO order?
+-* Stack
+- Queue
+- Heap
+
+### Markdown question block (wrap question in \`\`\`markdown fence)
+\`\`\`markdown
+Which **planet** is known as the *Red Planet*?
+\`\`\`
+- Earth
+-* Mars
+- Jupiter
+
+### Mermaid diagram in question (\`\`\`mermaid fence)
+What does this flowchart describe?
+\`\`\`mermaid
+flowchart TD
+    A[Start] --> B{OK?}
+    B -->|Yes| C[Done]
+    B -->|No| D[Fix it]
+\`\`\`
+-* A conditional process loop
+- A deployment pipeline
+
 ### Rules summary
-1. First line of a block = question text (never starts with -)
-2. Lines starting with -* = correct answer(s)
-3. Lines starting with - (without *) = wrong answers
-4. One blank line separates questions — no more, no less
-5. Plain UTF-8 text, no special encoding required
-6. Images/links can be embedded as [label](url) inside question or answer text`;
+1. Frontmatter block (---…---) is optional; place it at the very top only.
+2. Lines starting with # or --- are comments/separators — never shown.
+3. First non-comment, non-answer line(s) of a block = question text.
+4. Lines starting with -* = correct answer(s).
+5. Lines starting with - (without *) = wrong answers.
+6. One blank line separates question blocks.
+7. Plain UTF-8 text, no special encoding required.
+8. [label](url) links in question text open images in a lightbox.`;
 
 function buildPrompt() {
     const topic      = document.getElementById('ph-topic').value.trim();

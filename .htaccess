@@ -1,0 +1,8 @@
+# Disable directory listing site-wide
+Options -Indexes
+
+# Block direct browser access to the config directory
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^config(/|$) - [F,L]
+</IfModule>

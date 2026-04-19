@@ -1,17 +1,64 @@
+---
+name: General Knowledge Quiz
+description: A demo exam covering geography, colors, and astronomy.
+---
+
+# ── Geography ─────────────────────────────────────────────────────────────────
+
 What is the capital of France?
+![diagram](content/images/diagram.svg)
 -* Paris
 - Berlin
 - Madrid
 - Rome
 
-Select the primary colors.
+# ── Colors ────────────────────────────────────────────────────────────────────
+
+Select the primary colors (RGB model).
+```mermaid
+flowchart LR
+    RGB[RGB color model] --> R[Red]
+    RGB --> G[Green]
+    RGB --> B[Blue]
+
+    R --> Y[Yellow]
+    G --> Y
+
+    Y -. info .-> N[Yellow is formed by mixing colors]
+
+    classDef rgb fill:#f3f4f6,stroke:#6b7280,color:#111827;
+    classDef red fill:#ff4d4d,stroke:#b91c1c,color:#ffffff;
+    classDef green fill:#22c55e,stroke:#15803d,color:#ffffff;
+    classDef blue fill:#3b82f6,stroke:#1d4ed8,color:#ffffff;
+    classDef yellow fill:#facc15,stroke:#ca8a04,color:#111827;
+    classDef note fill:#fff7cc,stroke:#d4a017,color:#111827;
+
+    class RGB rgb;
+    class R red;
+    class G green;
+    class B blue;
+    class Y yellow;
+    class N note;
+```
 -* Red
 -* Blue
 - Yellow
 -* Green
 
-Which planet is known as the Red Planet?
+# ── Astronomy ─────────────────────────────────────────────────────────────────
+
+```markdown
+Which **planet** is known as the *Red Planet*?
+```
 - Earth
 -* Mars
 - Jupiter
 - Venus
+
+--- Extra questions below ---
+
+What does HTTP stand for?
+- HyperText Transfer Program
+-* HyperText Transfer Protocol
+- High Transfer Text Protocol
+- HyperText Transmission Protocol

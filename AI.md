@@ -1,346 +1,245 @@
 # AI Instructions for Smart Exam Format (SEF)
 
-This document provides comprehensive instructions for AI systems working with the **Smart Exam Format (SEF)** - a structured plain text format for creating, managing, and analyzing multiple-choice exams.
+This document describes the **Smart Exam Format (SEF)** for AI systems that parse, generate, or transform `.sef` exam files.
 
 ---
 
-## What is Smart Exam Format (SEF)?
+## Format Overview
 
-SEF is a free, open-source plain text format (.txt) designed for:
-- Creating adaptive learning experiences
-- Tracking user performance and progress
-- Enabling AI-powered question generation
-- Supporting continuous learning cycles
-- Providing compatibility across all devices and platforms
-
-SEF's core innovation is its **two-state design** that transforms from Input State (original exam) to Executed State (with user responses), enabling detailed performance analysis and AI-driven follow-up learning.
+SEF is a plain-text format for multiple-choice exams. Files use the `.sef` extension and UTF-8 encoding. Questions and answers are grouped in **blocks separated by blank lines**.
 
 ---
 
-## SEF Format Structure
+## 1. YAML Frontmatter (optional)
 
-### 1. Input State (Original Exam Format)
-
-The Input State is used for presenting exams to learners:
+A frontmatter block at the very top of the file provides metadata. It is stripped before parsing and never shown during the exam.
 
 ```
-What is 2 + 2?
--* 4
-- 3
-- 5
-
-What is the capital of France?
--* Paris
-- Berlin
-- Madrid
-
-Which colors are primary colors?
--* Red
--* Blue
--* Yellow
-- Green
-- Orange
+---
+name: Exam Title
+description: A short description shown on the start page
+---
 ```
 
-**Key Rules for Input State:**
-- Each question starts with question text on its own line
-- Answer options start with hyphen (`-`)
-- Correct answers are marked with hyphen-asterisk (`-*`)
-- Questions are separated by blank lines
-- Multiple correct answers are supported
-- Images can be included using Markdown syntax: `![alt text](image-url)` or `[alt text](image-url)`
-
-### 2. Executed State (With User Responses)
-
-The Executed State captures user selections for analysis:
-
-```
-What is 2 + 2?
-[] -* 4
-[] - 3
-[*] - 5
-
-What is the capital of France?
-[*] -* Paris
-[] - Berlin
-[] - Madrid
-
-Which colors are primary colors?
-[*] -* Red
-[] -* Blue
-[*] -* Yellow
-[] - Green
-[*] - Orange
-```
-
-**Key Rules for Executed State:**
-- User selections are marked with `[*]` (selected) or `[]` (not selected)
-- Correct answers maintain their `-*` marking
-- Format: `[selection] -[correctness] answer_text`
-- Selection: `[*]` = selected, `[]` = not selected
-- Correctness: `-*` = correct answer, `-` = incorrect answer
+Supported keys: `name`, `description`. Only simple `key: value` pairs are supported (no nested YAML).
 
 ---
 
-## Response Pattern Analysis
+## 2. Comments and Section Separators
 
-When analyzing SEF Executed State, identify these patterns:
+```
+# This is a comment — ignored by the parser
+--- Section label (also ignored) ---
+```
 
-| Pattern | Format | Meaning |
-|---------|--------|---------|
-| `[*] -*` | Selected Correct | User chose correct answer |
-| `[] -*` | Unselected Correct | User missed correct answer |
-| `[*] -` | Selected Incorrect | User chose wrong answer |
-| `[] -` | Unselected Incorrect | User correctly avoided wrong answer |
-
-**Focus Areas for AI Follow-up:**
-1. `[] -*` patterns indicate knowledge gaps (missed correct answers)
-2. `[*] -` patterns indicate misconceptions (chose incorrect answers)
-3. Questions with multiple `[] -*` or `[*] -` patterns need reinforcement
+- Lines starting with `#` are comments, stripped silently.
+- Lines starting with `---` are visual section separators, also stripped.
+- Use them freely to organise the file.
 
 ---
 
-## AI Guidelines for Working with SEF
+## 3. Question Blocks
 
-### Parsing SEF Files
-
-When parsing SEF content:
-
-1. **Identify State Type:**
-   - Input State: Contains `-*` and `-` markings only
-   - Executed State: Contains `[]` and `[*]` markings
-
-2. **Extract Questions:**
-   - Questions are separated by blank lines
-   - First line of each block is the question text
-   - Subsequent lines starting with `-` or `[]` are answers
-
-3. **Parse Answer Options:**
-   - Split on newlines, filter for lines starting with `-` or `[]`
-   - Extract selection status, correctness, and answer text
-
-### Generating SEF Questions
-
-When creating new SEF questions:
-
-1. **Question Format:**
-   ```
-   [Question text here]
-   -* [Correct answer 1]
-   -* [Correct answer 2] (if multiple correct)
-   - [Incorrect answer 1]
-   - [Incorrect answer 2]
-   ```
-
-2. **Best Practices:**
-   - Write clear, unambiguous questions
-   - Provide 3-5 answer options
-   - Ensure only correct answers have `-*` marking
-   - Include at least 2-3 incorrect options for proper difficulty
-   - Separate questions with blank lines
-
-3. **For Images:**
-   ```
-   What type of animal is shown?
-   ![Animal image](https://example.com/image.jpg)
-   -* Cat
-   - Dog
-   - Bird
-   ```
-
-### Analyzing Performance for Follow-up Questions
-
-When analyzing Executed State for generating follow-up questions:
-
-1. **Identify Weak Areas:**
-   - Count `[] -*` (missed correct) and `[*] -` (selected incorrect) patterns
-   - Group by topic or subject area if metadata available
-
-2. **Generate Targeted Questions:**
-   - Create questions focusing on missed concepts
-   - Approach the same topic from different angles
-   - Vary question difficulty based on performance level
-
-3. **Reinforcement Strategy:**
-   - For `[] -*`: Create similar questions about the same concept
-   - For `[*] -`: Create questions that clarify common misconceptions
-   - Focus on topics with multiple errors
-
-### Creating Effective SEF Prompts
-
-When generating AI prompts for SEF question creation:
+Each block is separated from the next by **one or more blank lines**.
 
 ```
-Create new Smart Exam Format questions based on this analysis:
-
-MISSED TOPICS ([] -*):
-- Topic 1: [specific concept missed]
-- Topic 2: [specific concept missed]
-
-MISCONCEPTIONS ([*] -):
-- Misconception 1: [what user incorrectly believed]
-- Misconception 2: [what user incorrectly believed]
-
-Generate 5-10 new questions in SEF format focusing on these weak areas.
-Use this exact format:
-[Question text]
--* [Correct answer]
-- [Incorrect option]
-- [Incorrect option]
-
-[Empty line between questions]
+Question text goes here
+- Wrong answer
+-* Correct answer
+- Wrong answer
+- Wrong answer
 ```
+
+Rules:
+- Any non-blank, non-comment, non-separator line that does **not** start with `-` is question text.
+- Lines starting with `-` are answer choices.
+- Lines starting with `-*` are **correct** answer choices.
+- A block with **multiple `-*` lines** is rendered as checkboxes (multiple correct answers allowed).
+- A block with **one `-*` line** is rendered as radio buttons.
 
 ---
 
-## Common SEF Use Cases for AI
+## 4. Markdown in Questions
 
-### 1. Adaptive Learning Systems
-- Parse Executed State to identify learning gaps
-- Generate personalized follow-up questions
-- Track progress over multiple SEF sessions
+Full Markdown is supported in question text (rendered via marked.js):
 
-### 2. Question Generation
-- Convert existing content to SEF format
-- Create questions from text, documents, or curriculum
-- Generate distractors (incorrect answers) for multiple choice
+```
+What does the `**bold**` syntax produce in Markdown?
+- Italic text
+-* Bold text
+- Underlined text
+- A heading
+```
 
-### 3. Performance Analytics
-- Calculate scores and accuracy rates
-- Identify patterns in user mistakes
-- Generate learning recommendations
+Supported: **bold**, *italic*, `inline code`, [links](url), ![images](url), ordered/unordered lists, blockquotes.
 
-### 4. Content Conversion
-- Convert from other formats (Aiken, VCE, etc.) to SEF
-- Transform SEF to other assessment formats
-- Migrate legacy quiz content
-
-### 5. Educational Tools Integration
-- Import SEF into learning management systems
-- Create printable study materials from SEF
-- Generate flashcards from SEF content
+> Raw HTML tags are intentionally **escaped** and shown as literal text, so `<title>` or `<h1>` in an answer option will display as text, not as a live HTML element.
 
 ---
 
-## Example AI Workflows
+## 5. Inline Images
 
-### Workflow 1: Question Generation from Text
+Use standard Markdown image syntax to embed images directly in a question:
+
 ```
-Input: Text content or curriculum material
-Process: 
-1. Extract key concepts and facts
-2. Generate questions covering main topics
-3. Create plausible incorrect answers
-4. Format in SEF Input State
-Output: Ready-to-use SEF exam file
-```
-
-### Workflow 2: Performance-Based Follow-up
-```
-Input: SEF Executed State file
-Process:
-1. Parse user responses and identify errors
-2. Analyze error patterns by topic
-3. Generate targeted questions for weak areas
-4. Create new SEF Input State for reinforcement
-Output: Personalized follow-up exam
-```
-
-### Workflow 3: Format Conversion
-```
-Input: Questions in other formats (JSON, CSV, etc.)
-Process:
-1. Parse source format structure
-2. Map to SEF question/answer structure
-3. Apply SEF formatting rules
-4. Validate output format
-Output: Converted SEF format file
-```
-
----
-
-## Error Handling and Validation
-
-When working with SEF files, validate:
-
-1. **Format Compliance:**
-   - Questions separated by blank lines
-   - Answers start with `-` or `[]`
-   - Correct answers marked with `-*`
-   - Executed state has selection markers
-
-2. **Content Quality:**
-   - Each question has at least one correct answer
-   - Questions are clear and unambiguous
-   - Answer options are mutually exclusive
-   - No duplicate answer options
-
-3. **State Consistency:**
-   - Executed state maintains correct answer markings from Input state
-   - All answers have selection indicators in Executed state
-   - Question count matches between states
-
----
-
-## Advanced Features
-
-### Multi-Language Support
-SEF supports any language in question and answer text:
-```
-Hvad er hovedstaden i Danmark?
--* København
-- Århus
-- Odense
-```
-
-### Complex Question Types
-```
-Which of the following are advantages of SEF? (Select all that apply)
--* Plain text format
--* AI integration support
--* Cross-platform compatibility
-- Requires proprietary software
--* Open source format
-```
-
-### Image Integration
-```
-Identify the geometric shape:
-![Shape diagram](https://example.com/triangle.png)
+Identify the shape shown below:
+![A blue triangle](content/images/triangle.png)
 -* Triangle
 - Square
 - Circle
-- Pentagon
+```
+
+Use `![alt](path)` for inline display. Paths are relative to the site root.
+
+Image links in the form `[label](path.png)` open in a popup overlay instead.
+
+---
+
+## 6. Code Blocks Inside Questions
+
+Fenced code blocks (` ``` `) are part of the question block and rendered with syntax highlighting:
+
+```
+What does this Python snippet print?
+` ``python
+x = [i**2 for i in range(4)]
+print(x)
+` ``
+- [1, 4, 9, 16]
+-* [0, 1, 4, 9]
+- [0, 1, 2, 3]
+- SyntaxError
+```
+
+The closing ` ``` ` ends the code block but does **not** end the question block. Answer lines can follow immediately.
+
+---
+
+## 7. Mermaid Diagrams
+
+Use a ` ```mermaid ``` ` block anywhere in the question text to embed a rendered diagram:
+
+```
+` ``mermaid
+flowchart TD
+    A[Client] -->|HTTP Request| B[Server]
+    B -->|Response| A
+` ``
+What protocol does this diagram illustrate?
+- FTP
+-* HTTP
+- SMTP
+- SSH
+```
+
+The diagram is rendered interactively by mermaid.js. Diagrams are a powerful way to ask questions about architecture, flows, and data structures.
+
+---
+
+## 8. Complete Example File
+
+```
+---
+name: Web Fundamentals
+description: HTTP, REST, and browser basics
+---
+
+# ── HTTP ──────────────────────────────────────────────────────────────────────
+
+What does **HTTP** stand for?
+- HyperText Transfer Method
+-* HyperText Transfer Protocol
+- High Transfer Text Protocol
+- Host-to-Host Transport Protocol
+
+Which HTTP status codes indicate a **client** error? (select all that apply)
+-* 400 Bad Request
+-* 403 Forbidden
+-* 404 Not Found
+- 200 OK
+- 500 Internal Server Error
+
+` ``mermaid
+flowchart LR
+    Client -->|Request| Server
+    Server -->|200 OK| A[Success]
+    Server -->|4xx| B[Client Error]
+    Server -->|5xx| C[Server Error]
+` ``
+What category does HTTP 404 fall into in this diagram?
+- Server Error
+-* Client Error
+- Success
+- Redirect
+
+# ── REST ──────────────────────────────────────────────────────────────────────
+
+Which HTTP methods are considered **safe** (read-only)? (select all)
+-* GET
+-* HEAD
+- POST
+- DELETE
+-* OPTIONS
 ```
 
 ---
 
-## Integration Best Practices
+## 9. Executed State (Results Format)
 
-1. **File Handling:**
-   - Use UTF-8 encoding for international character support
-   - Maintain consistent line endings (prefer LF)
-   - Keep backup copies of original Input State files
+After a user completes an exam, results are exported in **Executed State** format. Each answer line is prefixed with the user's selection:
 
-2. **User Experience:**
-   - Present questions one at a time or in logical groups
-   - Provide immediate feedback after completion
-   - Show progress indicators for long exams
+```
+What does HTTP stand for?
+[ ] - HyperText Transfer Method
+[*] -* HyperText Transfer Protocol
+[ ] - High Transfer Text Protocol
+[ ] - Host-to-Host Transport Protocol
+```
 
-3. **Data Analysis:**
-   - Store both Input and Executed states for comparison
-   - Track timestamps for performance analytics
-   - Maintain user progress histories for longitudinal analysis
+**Interpretation table:**
 
-4. **AI Integration:**
-   - Use structured prompts for consistent output
-   - Validate AI-generated content before use
-   - Implement feedback loops for continuous improvement
+| Prefix + Marker | Meaning |
+|----------------|---------|
+| `[*] -*` | User selected a correct answer ✓ |
+| `[ ] -*` | User missed a correct answer ✗ (knowledge gap) |
+| `[*] -`  | User selected a wrong answer ✗ (misconception) |
+| `[ ] -`  | User correctly avoided a wrong answer ✓ |
 
 ---
 
-## Conclusion
+## 10. AI Generation Guidelines
 
-SEF provides a powerful, flexible format for AI-powered educational tools. Its simplicity enables easy parsing and generation, while its two-state design supports sophisticated learning analytics and adaptive question generation. When working with SEF, focus on maintaining format compliance while leveraging its structure for meaningful educational insights and personalized learning experiences.
+### Output rules
+- Output **only valid SEF** — no explanations, no wrapping code fences, no extra commentary.
+- Start with YAML frontmatter (`---\nname: …\ndescription: …\n---`).
+- Separate every question block with exactly **one blank line**.
+- Use `#` comment lines and `---` separators to organise sections.
 
-For more examples and tools, explore the SEF repository structure including parsers, simulators, and AI integration examples.
+### Analysing results for follow-up questions
+1. Identify questions where the user had `[ ] -*` (missed correct) or `[*] -` (selected wrong).
+2. Group by topic if discernible.
+3. Generate new questions that approach those topics from a different angle.
+4. For `[ ] -*`: reinforce the missed concept with similar questions.
+5. For `[*] -`: expose the misconception directly in a new question.
+
+### Vary question types
+- Single-answer (one `-*`)
+- Multiple-answer (several `-*` — remind users to "select all that apply")
+- Code-based (` ```lang ``` ` snippet in the question)
+- Diagram-based (` ```mermaid ``` ` for flows, architectures, state machines)
+
+### Language
+- Always match the language of the original questions.
+- Do not translate unless explicitly asked.
+
+---
+
+## 11. URL Parameters (for reference)
+
+| Parameter | Description |
+|-----------|-------------|
+| `?file=demo.sef` | Load a `.sef` file from `/content/` |
+| `?exam=<base64>` | Load a full SEF file encoded as UTF-8-safe base64 |
+| `/ai/?input=<base64>` | Open the AI generator with pre-loaded exam results |
+
+Base64 encoding uses UTF-8 bytes encoded with the standard `encodeURIComponent` → `btoa` pattern, so international characters (Swedish å/ä/ö, etc.) are handled correctly.

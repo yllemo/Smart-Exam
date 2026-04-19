@@ -214,49 +214,93 @@ button:disabled {
     display: none;
 }
 
-/* File list (exam selection screen) */
+/* ── Exam selection (start page) ─────────────────────────────────────────── */
 .file-list-section {
-    text-align: center;
-    padding: 10px 0 20px;
+    padding: 8px 0 20px;
 }
 
-.file-list-section h2 {
+.exam-hub-title {
     color: #e0e0e0;
-    margin-bottom: 20px;
-    font-size: 1.4em;
+    font-size: 1.3em;
+    font-weight: 600;
+    margin: 0 0 20px;
+    text-align: center;
 }
 
-.file-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+/* Card grid */
+.exam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
 }
 
-.file-list li {
-    margin: 10px 0;
-}
-
-.file-list li a {
-    display: block;
-    padding: 12px 20px;
-    background-color: #2e2e2e;
-    color: #03dac6;
+.exam-card {
+    display: flex;
+    flex-direction: column;
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 18px 20px 14px;
     text-decoration: none;
-    border-radius: 8px;
-    font-size: 1.05em;
-    transition: background-color 0.2s, color 0.2s;
+    color: #e0e0e0;
+    transition: background 0.18s, border-color 0.18s, transform 0.15s;
+    cursor: pointer;
+    min-height: 110px;
+}
+.exam-card:hover {
+    background: #6200ee;
+    border-color: #6200ee;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(98,0,238,.35);
 }
 
-.file-list li a:hover {
-    background-color: #6200ee;
-    color: #ffffff;
+.exam-card-name {
+    font-size: 1em;
+    font-weight: 700;
+    color: #03dac6;
+    margin-bottom: 6px;
+    line-height: 1.3;
+    word-break: break-word;
 }
+.exam-card:hover .exam-card-name { color: #fff; }
+
+.exam-card-desc {
+    font-size: 0.8em;
+    color: #888;
+    line-height: 1.45;
+    flex: 1;
+    margin-bottom: 10px;
+    word-break: break-word;
+}
+.exam-card:hover .exam-card-desc { color: #ddd; }
+
+.exam-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid #333;
+    font-size: 0.75em;
+}
+.exam-card:hover .exam-card-footer { border-top-color: rgba(255,255,255,.2); }
+
+.exam-card-count { color: #666; }
+.exam-card:hover .exam-card-count { color: #ccc; }
+
+.exam-card-start {
+    color: #6200ee;
+    font-weight: 700;
+    letter-spacing: .02em;
+}
+.exam-card:hover .exam-card-start { color: #fff; }
 
 .no-files {
     color: #b0b0b0;
     font-style: italic;
+    text-align: center;
+    padding: 20px 0;
 }
-
 .no-files code {
     background-color: #2e2e2e;
     padding: 2px 6px;
@@ -276,6 +320,60 @@ button:disabled {
     user-select: none;
 }
 .label-short { display: none; }
+
+/* ── Markdown content in question block ─────────────────────────────────── */
+.question-block p {
+    margin: 0 0 0.6em;
+}
+.question-block p:last-child { margin-bottom: 0; }
+.question-block strong { color: #fff; }
+.question-block em     { color: #c8c8ff; }
+.question-block a {
+    color: #03dac6;
+    cursor: pointer;
+}
+.question-block code {
+    background: #2a2a3a;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.88em;
+    color: #03dac6;
+}
+.question-block pre {
+    background: #1a1a2e;
+    padding: 12px 14px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+.question-block pre code {
+    background: none;
+    padding: 0;
+    color: #c8c8ff;
+    font-size: 0.85em;
+}
+.question-block img {
+    max-width: 100%;
+    border-radius: 6px;
+    margin: 8px 0;
+    display: block;
+}
+.question-block ul,
+.question-block ol {
+    padding-left: 1.4em;
+    margin: 0.4em 0;
+}
+
+/* ── Mermaid diagrams ────────────────────────────────────────────────────── */
+.mermaid {
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    text-align: center;
+    overflow-x: auto;
+}
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 540px) {

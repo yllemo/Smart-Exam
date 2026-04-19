@@ -1,0 +1,74 @@
+---
+name: Grundläggande AI
+description: 10 frågor om artificiell intelligens för nybörjare.
+---
+
+# ── Begrepp ───────────────────────────────────────────────────────────────────
+
+Vad betyder förkortningen AI?
+- Automatiserad Information
+-* Artificiell Intelligens
+- Avancerad Integration
+- Adaptiv Inlärning
+
+Vilket av följande beskriver **maskininlärning** bäst?
+-* Ett system som förbättrar sin prestanda genom erfarenhet och data
+- Ett program som följer fasta regler skrivna av en programmerare
+- En robot som kan röra sig autonomt i fysiska miljöer
+- En databas som lagrar stora mängder information
+
+Vad är ett **neuralt nätverk**?
+- Ett datornätverk som kopplar samman AI-servrar världen över
+-* En beräkningsmodell inspirerad av hjärnans nervceller
+- En typ av algoritm för att sortera data
+- Ett säkerhetssystem för att skydda AI-modeller
+
+# ── Typer av AI ───────────────────────────────────────────────────────────────
+
+Vad kallas AI som är tränad för att lösa ett specifikt problem, exempelvis att spela schack?
+-* Smal AI (Narrow AI)
+- Generell AI (AGI)
+- Superintelligens
+- Kognitiv AI
+
+Vilka av följande är vanliga typer av maskininlärning?
+-* Övervakad inlärning
+-* Oövervakad inlärning
+-* Förstärkningsinlärning
+- Kvantinlärning
+
+# ── Tillämpningar ─────────────────────────────────────────────────────────────
+
+Vilket av följande är ett exempel på AI i vardagen?
+- En vanlig miniräknare
+-* En rekommendationstjänst som föreslår filmer baserat på dina val
+- En digital klocka
+- Ett kalkylblad i Excel
+
+Vad används **naturlig språkbehandling** (NLP) till?
+- Att rita bilder med hjälp av algoritmer
+- Att optimera minnesprestanda i datorer
+-* Att låta datorer förstå, tolka och generera mänskligt språk
+- Att komprimera videofiler
+
+# ── Etik och risker ───────────────────────────────────────────────────────────
+
+Vad menas med **bias** (snedvridning) i en AI-modell?
+- Att modellen är för långsam att träna
+-* Att modellen systematiskt ger orättvisa eller felaktiga resultat för vissa grupper
+- Att modellen använder för mycket energi
+- Att modellen inte kan hantera stora datamängder
+
+Vilka av följande är vanliga etiska utmaningar med AI?
+-* Integritet och övervakning
+-* Diskriminering via partiska träningsdata
+-* Ansvarsfrågor vid autonoma beslut
+- Att AI-modeller kräver för lite beräkningskraft
+
+# ── Stora språkmodeller ───────────────────────────────────────────────────────
+
+Vad är en **stor språkmodell** (LLM)?
+- En databas med grammatikregler för olika språk
+- Ett översättningsprogram för juridiska dokument
+-* En AI-modell tränad på stora mängder text för att generera och förstå språk
+- Ett stavningskontrollverktyg byggt på regelbaserad logik
